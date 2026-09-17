@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>QR Scanner · Masud Telecom Hotspot</title>
+
+  <!-- Google Fonts for Bengali & Tech font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN for Standalone GitHub Pages -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- HTML5 QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Outfit', 'Noto Sans Bengali', sans-serif;
+      background: radial-gradient(circle at top, #064e3b 0%, #0f172a 60%, #020617 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .bangla {
+      font-family: 'Noto Sans Bengali', sans-serif;
+    }
+    .mono {
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* Scanner Viewfinder Box */
+    .scanner-container {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.3);
+      background: #000;
+    }
+
+    #reader {
+      width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+    }
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 28px;
+    }
+
+    /* Viewfinder Corner Highlights */
+    .scanner-corners {
+      position: absolute;
+      inset: 24px;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .corner {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-color: #10b981;
+      border-width: 4px;
+    }
+    .top-left { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 12px; }
+    .top-right { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 12px; }
+    .bottom-left { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 12px; }
+    .bottom-right { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 12px; }
+
+    /* Laser Scanner Animation */
+    .laser-line {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent);
+      box-shadow: 0 0 18px 4px rgba(16, 185, 129, 0.85);
+      z-index: 25;
+      pointer-events: none;
+      animation: laserSweep 2.2s infinite ease-in-out;
+    }
+
+    @keyframes laserSweep {
+      0% { top: 32px; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { top: calc(100% - 32px); opacity: 0; }
+    }
+
+    /* Pulse effect */
+    .pulse-ring {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+      animation: pulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+    @keyframes pulse {
+      to { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen px-4 py-6 justify-between items-center text-center">
+
+  <!-- Top Header / Brand -->
+  <header class="w-full max-w-md mx-auto flex items-center justify-between py-2 mb-4">
+    <div class="flex items-center gap-3 text-left">
+      <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-lg shadow-emerald-950/40">
+        <i data-lucide="scan-line" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-extrabold tracking-tight text-white leading-none">MASUD TELECOM</h1>
+        <p class="text-[11px] text-emerald-400 font-bold uppercase tracking-wider mt-1 leading-none">Wi-Fi Hotspot Voucher QR Scanner</p>
+      </div>
+    </div>
+
+    <!-- Back to Login -->
+    <button onclick="goBackToLogin()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all cursor-pointer">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      <span class="bangla">ফিরে যান</span>
+    </button>
+  </header>
+
+  <!-- Main Scanner Area -->
+  <main class="w-full max-w-md mx-auto flex flex-col items-center flex-1 justify-center">
+
+    <!-- Instructions Banner -->
+    <div class="mb-5 text-center px-4">
+      <h2 class="text-lg md:text-xl font-extrabold text-white bangla mb-1">ভাউচার কিউআর কোডটি ক্যামেরার সামনে ধরুন</h2>
+      <p class="text-xs text-slate-400 bangla leading-relaxed">
+        স্ক্যান হওয়া মাত্রই স্বয়ংক্রিয়ভাবে কোডটি বসে হটস্পট লগইন সম্পন্ন হয়ে যাবে
+      </p>
+    </div>
+
+    <!-- Camera Viewport Box -->
+    <div class="scanner-container">
+      <div id="reader"></div>
+
+      <div class="scanner-corners" id="scanner-overlays">
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+        <div class="laser-line"></div>
+      </div>
+
+      <!-- Loading / Camera Request Placeholder -->
+      <div id="camera-loading" class="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-6 text-center z-30 transition-opacity duration-300">
+        <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 pulse-ring">
+          <i data-lucide="camera" class="w-7 h-7"></i>
+        </div>
+        <h3 class="text-sm font-bold text-white bangla mb-1">ক্যামেরা চালু হচ্ছে...</h3>
+        <p class="text-xs text-slate-400 bangla">ব্রাউজারে ক্যামেরা ব্যবহারের অনুমতি (Allow) দিন</p>
+      </div>
+
+      <!-- Scan Success Notification Overlay -->
+      <div id="scan-success-modal" class="hidden absolute inset-0 bg-emerald-950/95 flex flex-col items-center justify-center p-6 text-center z-40 animate-fadein">
+        <div class="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center mb-3 shadow-xl shadow-emerald-500/40 animate-bounce">
+          <i data-lucide="check" class="w-10 h-10 stroke-[3]"></i>
+        </div>
+        <h3 class="text-base font-black text-white bangla mb-1">ভাউচার কোড পাওয়া গেছে!</h3>
+        <p class="text-xs text-emerald-300 font-mono tracking-widest font-bold text-lg bg-emerald-900/60 px-4 py-1.5 rounded-xl border border-emerald-500/30 mb-2" id="scanned-code-display">------</p>
+        <p class="text-[11px] text-emerald-200 bangla">লগইন পেজে রিডাইরেক্ট করা হচ্ছে...</p>
+      </div>
+    </div>
+
+    <!-- Controls Bar (Flashlight + Camera Switch) -->
+    <div class="flex items-center justify-center gap-4 mt-6">
+      <button id="torch-btn" onclick="toggleFlashlight()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer shadow-lg">
+        <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+        <span class="bangla" id="torch-label">ফ্ল্যাশ লাইট</span>
+      </button>
+
+      <button onclick="switchCamera()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer shadow-lg">
+        <i data-lucide="switch-camera" class="w-4 h-4 text-emerald-400"></i>
+        <span class="bangla">ক্যামেরা পরিবর্তন</span>
+      </button>
+    </div>
+
+    <!-- Router Origin Target Notice -->
+    <div class="mt-6 text-center text-[11px] text-slate-400 bg-slate-900/60 border border-slate-800/80 px-4 py-2 rounded-xl">
+      <span class="bangla text-slate-400">হটস্পট গেটওয়ে: </span>
+      <span class="font-mono text-emerald-400 font-bold" id="target-host-display">10.12.48.1</span>
+    </div>
+
+  </main>
+
+  <!-- Footer Help -->
+  <footer class="w-full max-w-md mx-auto mt-6 text-center">
+    <button onclick="goBackToLogin()" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2 bangla cursor-pointer transition-all">
+      <i data-lucide="keyboard" class="w-4 h-4"></i>
+      <span>কোড লিখে ম্যানুয়ালি লগইন করতে চান? এখানে চাপুন</span>
+    </button>
+    <p class="text-[10px] text-slate-500 mt-3 font-mono">© 2026 Masud Telecom · Keshabpur, Jessore</p>
+  </footer>
+
+  <!-- Beep Audio Sound Synth via Web Audio API -->
+  <script>
+    lucide.createIcons();
+
+    // Parse Hotspot Gateway IP or Target Host from URL Parameters
+    // Example: https://yourusername.github.io/qr.html?host=10.12.48.1&dst=http%3A%2F%2Fgoogle.com
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetHost = urlParams.get('host') || '10.12.48.1';
+    const targetDst = urlParams.get('dst') || '';
+    
+    document.getElementById('target-host-display').textContent = targetHost;
+
+    function playSuccessBeep() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // High pitch pleasant beep
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } catch (e) {
+        console.log("Audio not supported", e);
+      }
+
+      // Haptic Vibration if supported
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+    }
+
+    function goBackToLogin() {
+      // Go back to the router hotspot login page
+      let loginUrl = `http://${targetHost}/login`;
+      if (targetDst) {
+        loginUrl += `?dst=${encodeURIComponent(targetDst)}`;
+      }
+      window.location.href = loginUrl;
+    }
+
+    // HTML5 QR Scanner Controller
+    let html5QrCode = null;
+    let currentCameraId = null;
+    let availableCameras = [];
+    let isFlashlightOn = false;
+    let isProcessingScan = false;
+
+    async function initScanner() {
+      try {
+        html5QrCode = new Html5Qrcode("reader");
+        availableCameras = await Html5Qrcode.getCameras();
+
+        if (availableCameras && availableCameras.length) {
+          // Prefer back / environment camera
+          const backCam = availableCameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear') || c.label.toLowerCase().includes('environment'));
+          currentCameraId = backCam ? backCam.id : availableCameras[0].id;
+          startScanning(currentCameraId);
+        } else {
+          // Fallback to environment facing mode
+          startScanning({ facingMode: "environment" });
+        }
+      } catch (err) {
+        console.error("Camera access error:", err);
+        document.getElementById('camera-loading').innerHTML = `
+          <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-3">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white bangla mb-1">ক্যামেরা ওপেন করা সম্ভব হয়নি</h3>
+          <p class="text-xs text-slate-400 bangla mb-4">অনুগ্রহ করে ব্রাউজার সেটিংস থেকে ক্যামেরা পারমিশন এলাউ করুন।</p>
+          <button onclick="goBackToLogin()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-white bangla border border-slate-700">লগইন পেজে ফিরে যান</button>
+        `;
+        lucide.createIcons();
+      }
+    }
+
+    function startScanning(cameraIdOrConfig) {
+      const config = {
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
+
+      html5QrCode.start(
+        cameraIdOrConfig,
+        config,
+        onScanSuccess,
+        onScanError
+      ).then(() => {
+        document.getElementById('camera-loading').classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => document.getElementById('camera-loading').classList.add('hidden'), 300);
+      }).catch(err => {
+        console.error("Error starting QR Code scanner:", err);
+      });
+    }
+
+    function onScanSuccess(decodedText) {
+      if (isProcessingScan) return;
+      isProcessingScan = true;
+
+      playSuccessBeep();
+
+      // Extract Voucher code:
+      // Could be plain text: "123456"
+      // Or could be URL: "http://10.12.48.1/login?username=123456" or "http://wifi.hotspot/login?voucher=123456"
+      let voucherCode = decodedText.trim();
+
+      try {
+        if (voucherCode.startsWith('http://') || voucherCode.startsWith('https://')) {
+          const parsedUrl = new URL(voucherCode);
+          voucherCode = parsedUrl.searchParams.get('username') || 
+                            parsedUrl.searchParams.get('voucher') || 
+                            parsedUrl.searchParams.get('code') || 
+                            parsedUrl.searchParams.get('user') || 
+                            voucherCode;
+        }
+      } catch (e) {
+        // Not a URL, use raw string
+      }
+
+      // Filter only alphanumeric or numbers
+      voucherCode = voucherCode.replace(/[^a-zA-Z0-9]/g, '');
+
+      // Show Success Modal
+      document.getElementById('scanned-code-display').textContent = voucherCode;
+      document.getElementById('scan-success-modal').classList.remove('hidden');
+
+      // Stop camera
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(() => {});
+      }
+
+      // Build target redirect URL back to router
+      // Will open router login page with ?username=CODE&autologin=true
+      let redirectUrl = `http://${targetHost}/login?username=${encodeURIComponent(voucherCode)}&autologin=true`;
+      if (targetDst) {
+        redirectUrl += `&dst=${encodeURIComponent(targetDst)}`;
+      }
+
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 1000);
+    }
+
+    function onScanError(errorMessage) {
+      // Periodic frame scanning error - ignored
+    }
+
+    async function toggleFlashlight() {
+      if (!html5QrCode || !html5QrCode.isScanning) return;
+      try {
+        isFlashlightOn = !isFlashlightOn;
+        await html5QrCode.applyVideoConstraints({
+          advanced: [{ torch: isFlashlightOn }]
+        });
+        document.getElementById('torch-label').textContent = isFlashlightOn ? 'ফ্ল্যাশ অফ' : 'ফ্ল্যাশ লাইট';
+      } catch (e) {
+        alert("আপনার ডিভাইসে ক্যামেরার ফ্ল্যাশলাইট সাপোর্ট করছে না");
+      }
+    }
+
+    async function switchCamera() {
+      if (!html5QrCode || availableCameras.length < 2) {
+        alert("ডিভাইসে একাধিক ক্যামেরা পাওয়া যায়নি");
+        return;
+      }
+      try {
+        await html5QrCode.stop();
+        document.getElementById('camera-loading').classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+        
+        // Pick next camera
+        const currentIndex = availableCameras.findIndex(c => c.id === currentCameraId);
+        const nextIndex = (currentIndex + 1) % availableCameras.length;
+        currentCameraId = availableCameras[nextIndex].id;
+
+        startScanning(currentCameraId);
+      } catch (e) {
+        console.error("Camera switch error", e);
+      }
+    }
+
+    // Auto-launch on load
+    window.addEventListener('DOMContentLoaded', initScanner);
+  </script>
+</body>
+</html>
